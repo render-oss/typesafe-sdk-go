@@ -1,0 +1,290 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'typesafe/**'
+      - 'go.mod'
+      - '.golangci.yml'
+      - '.github/workflows/test.yml'
+  pull_request:
+    branches: [main]
+    types: [synchronize, opened, reopened]
+
+permissions:
+  # Required: allow read access to the content for analysis.
+  contents: read
+  # Optional: allow read access to pull requests. Use with `only-new-issues` option.
+  pull-requests: read
+
+# Cancel in-progress runs for the same branch/PR when a new push arrives.
+# Main-branch runs are never cancelled so merge results are always recorded.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  go-lint:
+    runs-on: ubuntu-latest
+    name: Go Lint
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+
+      - name: Set up Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c
+        with:
+          go-version: 1.27.0
+          cache: true
+          cache-dependency-path: go.sum
+
+      - name: Check Go formatting
+        id: gofmt
+        run: |
+          if [ "$(gofmt -l . | wc -l)" -gt 0 ]; then
+            echo "Go files are not formatted. Please run 'go fmt ./...'"
+            gofmt -d .
+            exit 1
+          fi
+
+      - name: Check strict Go formatting (gofumpt)
+        id: gofumpt
+        run: |
+          if [ "$(go tool gofumpt -l . | wc -l)" -gt 0 ]; then
+            echo "Go files are not strictly formatted. Please run 'mise hardfmt'."
+            go tool gofumpt -d .
+            exit 1
+          fi
+
+      - name: Verify go.mod is tidy
+        id: gomod
+        run: |
+          go mod tidy
+          if [ -n "$(git status --porcelain go.mod go.sum)" ]; then
+            echo "go.mod or go.sum is not tidy. Please run 'go mod tidy'."
+            git diff go.mod go.sum
+            exit 1
+          fi
+          
+      - name: golangci-lint
+        id: golangci
+        uses: golangci/golangci-lint-action@82606bf257cbaff209d206a39f5134f0cfbfd2ee
+        with:
+          version: v2.13
+
+      - name: Report Go lint check outcomes
+        if: always()
+        run: |
+          {
+            echo "### Go Lint Check Outcomes"
+            echo "- go formatting: ${{ steps.gofmt.outcome }}"
+            echo "- strict go formatting (gofumpt): ${{ steps.gofumpt.outcome }}"
+            echo "- go.mod tidy: ${{ steps.gomod.outcome }}"
+            echo "- golangci-lint: ${{ steps.golangci.outcome }}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "${{ steps.gofmt.outcome }}" = "failure" ]; then
+            echo "::error::Go Lint failed check: go formatting"
+          fi
+          if [ "${{ steps.gofumpt.outcome }}" = "failure" ]; then
+            echo "::error::Go Lint failed check: strict go formatting (gofumpt)"
+          fi
+          if [ "${{ steps.gomod.outcome }}" = "failure" ]; then
+            echo "::error::Go Lint failed check: go.mod tidy"
+          fi
+          if [ "${{ steps.golangci.outcome }}" = "failure" ]; then
+            echo "::error::Go Lint failed check: golangci-lint"
+          fi
+          if [ "${{ steps.gofmt.outcome }}" = "failure" ] || \
+             [ "${{ steps.gofumpt.outcome }}" = "failure" ] || \
+             [ "${{ steps.gomod.outcome }}" = "failure" ] || \
+             [ "${{ steps.golangci.outcome }}" = "failure" ]; then
+            exit 1
+          fi
+
+  go-test:
+    runs-on: ubuntu-latest
+    name: Go Tests
+    timeout-minutes: 15
+    outputs:
+      coverage-pct: ${{ steps.coverage.outputs.pct }}
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+
+      - name: Set up Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c
+        with:
+          go-version: 1.27.0
+          cache: true
+          cache-dependency-path: go.sum
+
+      - name: Cache exiftool apt package
+        id: exiftool-cache
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae
+        with:
+          path: ${{ runner.temp }}/apt-cache
+          # Stable key tied to the OS only; bump the version suffix (v1 → v2) only
+          # when a different exiftool version is intentionally required.
+          # Previously used hashFiles('.github/workflows/test.yml'), which caused
+          # cache misses on every unrelated workflow edit (action bumps, comments, etc.).
+          key: ${{ runner.os }}-apt-exiftool-v1
+          restore-keys: |
+            ${{ runner.os }}-apt-exiftool-
+
+      - name: Install exiftool
+        run: |
+          mkdir -p "${{ runner.temp }}/apt-cache"
+          if [ "${{ steps.exiftool-cache.outputs.cache-hit }}" = "true" ]; then
+            sudo apt-get -o dir::cache::archives="${{ runner.temp }}/apt-cache" install -y -q --no-download libimage-exiftool-perl
+          else
+            sudo apt-get update -qq
+            sudo apt-get -o dir::cache::archives="${{ runner.temp }}/apt-cache" install -y -q libimage-exiftool-perl
+          fi
+          exiftool -ver
+
+      - name: Run Go tests
+        run: go test -coverprofile=coverage.out -covermode=atomic ./...
+
+      - name: Display Go coverage summary
+        id: coverage
+        run: |
+          PCT=$(go tool cover -func=coverage.out | awk '/^total:/{print $NF}')
+          echo "pct=${PCT}" >> "$GITHUB_OUTPUT"
+          echo "Coverage: ${PCT}"
+
+      - name: Check for known vulnerabilities
+        run: |
+          # govulncheck exit codes: 0 = no vulns, 3 = vulns found, other = error.
+          # Stdlib vulns require a Go toolchain update and cannot be fixed in-repo,
+          # so we only fail on non-stdlib (third-party) vulnerabilities.
+          set +e
+          go tool govulncheck -format json ./... > vulncheck.json 2>vulncheck.stderr
+          rc=$?
+          set -e
+
+          if [ "$rc" -eq 0 ]; then
+            echo "No vulnerabilities found."
+            exit 0
+          fi
+
+          # Any exit code other than 3 is an execution error — fail hard.
+          if [ "$rc" -ne 3 ]; then
+            echo "::error::govulncheck failed with exit code $rc"
+            cat vulncheck.stderr
+            exit 1
+          fi
+
+          # Count non-stdlib findings (module path is not "stdlib").
+          # Fail closed: if jq parsing fails, treat as non-stdlib to avoid masking issues.
+          if ! jq_out=$(jq -r 'select(.finding != null) | .finding.trace[0].module' vulncheck.json 2>/dev/null); then
+            non_stdlib=1
+          else
+            non_stdlib=$(echo "$jq_out" | (grep -cv '^stdlib$' || echo 0))
+          fi
+
+          # Render a human-readable summary from the JSON instead of re-running govulncheck.
+          summary=$(jq -r '
+            select(.finding != null)
+            | .finding as $f
+            | ($f.osv // "unknown") as $osv
+            | ($f.trace[0].module // "unknown") as $module
+            | ($f.trace[0].package // "unknown") as $package
+            | "- \($osv) | module: \($module) | package: \($package)"
+          ' vulncheck.json 2>/dev/null)
+
+          if [ -n "$summary" ]; then
+            echo "Vulnerability summary:"
+            echo "$summary"
+          else
+            echo "Vulnerabilities were detected, but no summary could be rendered from vulncheck.json."
+            echo "Raw govulncheck JSON output:"
+            cat vulncheck.json
+          fi
+
+          if [ "$non_stdlib" -gt 0 ]; then
+            echo "::error::Non-stdlib vulnerabilities found"
+            exit 1
+          fi
+
+          echo "::warning::Only Go stdlib vulnerabilities found (requires Go toolchain update to fix)"
+          exit 0
+
+  go-all:
+    needs: [go-lint, go-test]
+    runs-on: ubuntu-latest
+    if: always()
+    # This job only runs a shell check; 2 minutes is more than enough.
+    # Without a timeout, a hung runner would default to 6 hours.
+    timeout-minutes: 2
+    steps:
+      - name: Check all Go jobs passed
+        run: |
+          if [[ "${{ needs.go-lint.result }}" != "success" || "${{ needs.go-test.result }}" != "success" ]]; then
+            echo "One or more Go jobs failed"
+            exit 1
+          fi
+
+  coverage-comment:
+    needs: [go-test]
+    if: >-
+      always()
+      && github.event_name == 'pull_request'
+      && github.event.pull_request.head.repo.full_name == github.repository
+      && needs.go-test.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    steps:
+      # No checkout, Go setup, or artifact downloads needed: both coverage
+      # percentages are exported as job outputs from go-test
+      - name: Post coverage comment
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          GO_PCT: ${{ needs.go-test.outputs.coverage-pct }}
+        with:
+          script: |
+            const MARKER = '<!-- gh-coverage-comment -->';
+            const goPct = process.env.GO_PCT || 'N/A';
+            const rows = [
+              `| Go backend | ${goPct} |`,
+            ];
+            const body = [
+              MARKER,
+              '## Test Coverage',
+              '',
+              '| Component | Coverage |',
+              '|-----------|----------|',
+              ...rows,
+              '',
+              '_Coverage is measured for all packages under `./...`._',
+            ].join('\n');
+
+            try {
+              const { data: comments } = await github.rest.issues.listComments({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+              });
+              const existing = comments.find(c =>
+                c.user.login === 'github-actions[bot]' && c.body.startsWith(MARKER)
+              );
+              if (existing) {
+                await github.rest.issues.updateComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: existing.id,
+                  body,
+                });
+              } else {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.issue.number,
+                  body,
+                });
+              }
+            } catch (e) {
+              core.warning(`Could not post coverage comment: ${e.message}`);
+            }

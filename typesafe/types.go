@@ -16,34 +16,34 @@ const (
 
 // Request is a TypeSafe Jev API request.
 type Request struct {
-	State     interface{}          `json:"state"`
-	Model     string               `json:"model"`
-	Questions map[string]Question  `json:"questions"`
+	State     any                 `json:"state"`
+	Model     string              `json:"model"`
+	Questions map[string]Question `json:"questions"`
 }
 
 // Question defines a single question for TypeSafe to evaluate.
 type Question struct {
-	Type         Type        `json:"type"`
-	Instructions interface{} `json:"instructions"`
-	Criteria     interface{} `json:"criteria,omitempty"`
+	Type         Type `json:"type"`
+	Instructions any  `json:"instructions"`
+	Criteria     any  `json:"criteria,omitempty"`
 }
 
 // Response is a TypeSafe Jev API response.
 type Response struct {
-	Model   string              `json:"model"`
-	Answers map[string]Answer   `json:"answers"`
-	Usage   Usage               `json:"usage"`
+	Model   string            `json:"model"`
+	Answers map[string]Answer `json:"answers"`
+	Usage   Usage             `json:"usage"`
 }
 
 // Answer is TypeSafe's response to a single question.
 type Answer struct {
-	Type           Type                `json:"type"`
-	Noul           float64             `json:"noul,omitempty"`           // TypeNoul: probability of yes (0-1)
-	Choice         string              `json:"choice,omitempty"`         // TypeChoice: selected option
-	Score          float64             `json:"score,omitempty"`          // TypeScore: score value
-	Probabilities  map[string]float64  `json:"probabilities,omitempty"`  // All options' probabilities
-	Confidence     float64             `json:"confidence,omitempty"`     // Confidence in the answer (0-1)
-	Legend         map[string]string   `json:"legend,omitempty"`         // TypeScore: level descriptions
+	Type          Type               `json:"type"`
+	Noul          float64            `json:"noul,omitempty"`          // TypeNoul: probability of yes (0-1)
+	Choice        string             `json:"choice,omitempty"`        // TypeChoice: selected option
+	Score         float64            `json:"score,omitempty"`         // TypeScore: score value
+	Probabilities map[string]float64 `json:"probabilities,omitempty"` // All options' probabilities
+	Confidence    float64            `json:"confidence,omitempty"`    // Confidence in the answer (0-1)
+	Legend        map[string]string  `json:"legend,omitempty"`        // TypeScore: level descriptions
 }
 
 // Usage tracks token consumption.
@@ -117,7 +117,7 @@ func ScoreQuestion(instructions string, rubric Rubric) Question {
 
 // StructuredQuestion creates a question with structured instructions and/or criteria.
 // This is useful for complex questions that need more than a string.
-func StructuredQuestion(qType Type, instructions interface{}, criteria interface{}) Question {
+func StructuredQuestion(qType Type, instructions any, criteria any) Question {
 	return Question{
 		Type:         qType,
 		Instructions: instructions,

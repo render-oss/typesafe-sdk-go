@@ -2,7 +2,11 @@ package typesafe
 
 import (
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestNew(t *testing.T) {
@@ -12,25 +16,15 @@ func TestNew(t *testing.T) {
 		WithModel("jev-latest"),
 	)
 
-	if c.APIKey != "test-key" {
-		t.Errorf("expected APIKey=test-key, got %s", c.APIKey)
-	}
-	if c.BaseURL != "https://api.typesafe.ai/v1/systemone" {
-		t.Errorf("expected BaseURL=https://api.typesafe.ai/v1/systemone, got %s", c.BaseURL)
-	}
-	if c.Model != "jev-latest" {
-		t.Errorf("expected Model=jev-latest, got %s", c.Model)
-	}
+	require.Equal(t, "test-key", c.APIKey)
+	require.Equal(t, "https://api.typesafe.ai/v1/systemone", c.BaseURL)
+	require.Equal(t, "jev-latest", c.Model)
 }
 
 func TestNoulQuestion(t *testing.T) {
 	q := NoulQuestion("Is this a yes/no question?")
-	if q.Type != TypeNoul {
-		t.Errorf("expected TypeNoul, got %s", q.Type)
-	}
-	if q.Instructions != "Is this a yes/no question?" {
-		t.Errorf("expected instructions to be set")
-	}
+	require.Equal(t, TypeNoul, q.Type)
+	require.Equal(t, "Is this a yes/no question?", q.Instructions)
 }
 
 func TestChoiceQuestion(t *testing.T) {
@@ -39,36 +33,23 @@ func TestChoiceQuestion(t *testing.T) {
 		"option2": "Second option",
 	}
 	q := ChoiceQuestion("Pick one", criteria)
-	if q.Type != TypeChoice {
-		t.Errorf("expected TypeChoice, got %s", q.Type)
-	}
-	if q.Criteria == nil {
-		t.Errorf("expected criteria to be set")
-	}
+	require.Equal(t, TypeChoice, q.Type)
+	require.Equal(t, criteria, q.Criteria)
 }
 
 func TestRubric(t *testing.T) {
 	rubric, err := NewRubric("Low", "Medium", "High")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(rubric) != 3 {
-		t.Errorf("expected 3 levels, got %d", len(rubric))
-	}
+	require.NoError(t, err)
+	require.Len(t, rubric, 3)
 
-	// Test validation
 	_, err = NewRubric("Only one")
-	if err == nil {
-		t.Error("expected error for rubric with 1 level")
-	}
+	require.Error(t, err)
 
 	_, err = NewRubric(
 		"1", "2", "3", "4", "5",
 		"6", "7", "8", "9", "10", "11",
 	)
-	if err == nil {
-		t.Error("expected error for rubric with >10 levels")
-	}
+	require.Error(t, err)
 }
 
 func TestRequest_Marshal(t *testing.T) {
@@ -80,9 +61,56 @@ func TestRequest_Marshal(t *testing.T) {
 		},
 	}
 
-	// Should not panic when marshaling
 	_, err := json.Marshal(req)
-	if err != nil {
-		t.Fatalf("failed to marshal request: %v", err)
-	}
+	require.NoError(t, err)
+}
+
+func TestRetryAndObserver(t *testing.T) {
+	// Encoded up front so the handler has nothing left to assert on: require's
+	// FailNow is only valid on the goroutine running the test.
+	body, err := json.Marshal(Response{Model: "jev-latest"})
+	require.NoError(t, err)
+
+	calls := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		calls++
+		if calls < 3 {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
+		_, _ = w.Write(body)
+	}))
+	defer srv.Close()
+
+	var seen []Attempt
+	c := New(
+		WithBaseURL(srv.URL),
+		WithObserver(func(a Attempt) { seen = append(seen, a) }),
+	)
+
+	resp, err := c.Classify(t.Context(), "hi", map[string]Question{
+		"q": NoulQuestion("Is this a test?"),
+	})
+	require.NoError(t, err)
+	require.Equal(t, "jev-latest", resp.Model)
+	require.Equal(t, 3, calls)
+	require.Len(t, seen, 3)
+
+	require.True(t, seen[0].WillRetry)
+	require.Equal(t, http.StatusServiceUnavailable, seen[0].StatusCode)
+	require.NoError(t, seen[2].Err)
+	require.False(t, seen[2].WillRetry)
+}
+
+func TestNoRetryOn4xx(t *testing.T) {
+	calls := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		calls++
+		w.WriteHeader(http.StatusBadRequest)
+	}))
+	defer srv.Close()
+
+	_, err := New(WithBaseURL(srv.URL)).Classify(t.Context(), "hi", nil)
+	require.Error(t, err)
+	require.Equal(t, 1, calls)
 }

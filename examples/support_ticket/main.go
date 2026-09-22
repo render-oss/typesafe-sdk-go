@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/renderinc/typesafe-go/typesafe"
+	"github.com/render-oss/typesafe-sdk-go"
 )
 
 // SupportTicket represents a customer support inquiry
@@ -21,10 +21,10 @@ func analyzeTicket(ctx context.Context, client *typesafe.Client, ticket SupportT
 		"department": typesafe.ChoiceQuestion(
 			"Which team should handle this support request?",
 			map[string]string{
-				"technical":  "Technical issues, bugs, integration failures, error messages",
-				"billing":    "Payment problems, invoicing, subscription questions, pricing",
-				"sales":      "Feature requests, pre-sales questions, partnership inquiries",
-				"general":    "Account questions, documentation, product information",
+				"technical": "Technical issues, bugs, integration failures, error messages",
+				"billing":   "Payment problems, invoicing, subscription questions, pricing",
+				"sales":     "Feature requests, pre-sales questions, partnership inquiries",
+				"general":   "Account questions, documentation, product information",
 			},
 		),
 		// Detect urgency / severity
@@ -50,7 +50,6 @@ func analyzeTicket(ctx context.Context, client *typesafe.Client, ticket SupportT
 			"No: no indication of leaving",
 		),
 	})
-
 	if err != nil {
 		fmt.Printf("Error analyzing ticket %s: %v\n", ticket.ID, err)
 		return
@@ -70,13 +69,14 @@ func analyzeTicket(ctx context.Context, client *typesafe.Client, ticket SupportT
 	fmt.Printf("🚪 Churn Risk: %.0f%%\n\n", churnRisk*100)
 
 	// Recommend handling priority
-	if churnRisk > 0.7 || urgency == 4 {
+	switch {
+	case churnRisk > 0.7 || urgency == 4:
 		fmt.Println("🔴 PRIORITY: Escalate immediately — high churn/critical issue")
-	} else if urgency >= 3 || sentiment > 0.6 {
+	case urgency >= 3 || sentiment > 0.6:
 		fmt.Println("🟠 HIGH: Assign to senior team member")
-	} else if urgency >= 2 {
+	case urgency >= 2:
 		fmt.Println("🟡 MEDIUM: Normal queue")
-	} else {
+	default:
 		fmt.Println("🟢 LOW: Can be batched or automated")
 	}
 }
@@ -94,19 +94,19 @@ func main() {
 	// Example support tickets
 	tickets := []SupportTicket{
 		{
-			ID: "TICKET-001",
+			ID:      "TICKET-001",
 			Message: "Hi, I've been trying to connect my Stripe account for 3 days and the integration keeps failing. I'm losing sales.",
 		},
 		{
-			ID: "TICKET-002",
+			ID:      "TICKET-002",
 			Message: "Could you explain how to configure webhooks? I'm reading the docs but want to make sure I understand correctly.",
 		},
 		{
-			ID: "TICKET-003",
+			ID:      "TICKET-003",
 			Message: "Your service is completely broken. I've wasted hours on this. If this isn't fixed by tomorrow, we're switching providers.",
 		},
 		{
-			ID: "TICKET-004",
+			ID:      "TICKET-004",
 			Message: "What's the difference between the Pro and Enterprise plans?",
 		},
 	}
