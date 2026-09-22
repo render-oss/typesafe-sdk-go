@@ -18,6 +18,12 @@ run = "go vet ./..."
 description = "Run nilaway"
 run = "go tool nilaway ./..."
 
+[tasks.vulncheck]
+description = "Check dependencies for known vulnerabilities"
+# Exits 3 on any finding, including stdlib ones that need a toolchain bump.
+# CI runs the same check but only fails on third-party findings.
+run = "go tool govulncheck ./..."
+
 [tasks.lint]
 depends = ["nilaway"]
 description = "Run Go linter"
