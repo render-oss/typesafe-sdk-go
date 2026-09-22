@@ -11,7 +11,7 @@ go get github.com/renderinc/typesafe-go
 ## Quick Start
 
 ```go
-import "github.com/renderinc/typesafe-go/typesafe"
+import "github.com/render-oss/typesafe-sdk-go"
 
 // Create a client
 client := typesafe.New(
