@@ -1,0 +1,48 @@
+[tools]
+go = "1.27.0"
+golangci-lint = "v2.13"
+
+[tasks.test]
+description = "Run Go tests"
+run = "go test ./..."
+
+[tasks.coverage]
+description = "Run Go tests with coverage"
+run = "go test -race -coverprofile=coverage.out -covermode=atomic ./..."
+
+[tasks.vet]
+description = "Run go vet"
+run = "go vet ./..."
+
+[tasks.nilaway]
+description = "Run nilaway"
+run = "go tool nilaway ./..."
+
+[tasks.lint]
+depends = ["nilaway"]
+description = "Run Go linter"
+run = "golangci-lint run ./..."
+
+[tasks.revive]
+description = "Run revive checks only"
+run = "golangci-lint run --enable-only revive ./..."
+
+[tasks.ci-lint]
+description = "Run all linting checks for CI"
+depends = ["fmt", "hardfmt", "tidy", "lint", "revive"]
+
+[tasks.tidy]
+description = "Run go mod tidy"
+run = "go mod tidy"
+
+[tasks.modernize]
+description = "Run modernize"
+run = "go run golang.org/x/tools/go/analysis/passes/modernize/cmd/modernize@latest -fix ./..."
+
+[tasks.fmt]
+description = "Run Go formatter"
+run = "gofmt -s -w ."
+
+[tasks.hardfmt]
+description = "Run hardfmt"
+run = "go tool gofumpt -w -l ."

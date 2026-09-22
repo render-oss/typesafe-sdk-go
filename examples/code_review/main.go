@@ -36,11 +36,11 @@ func prioritizeReview(ctx context.Context, client *typesafe.Client, req ReviewRe
 		"change_type": typesafe.ChoiceQuestion(
 			"What is the primary nature of this change?",
 			map[string]string{
-				"bugfix":       "Fixes an existing bug or defect",
-				"feature":      "Adds new functionality",
-				"refactor":     "Improves code structure without behavior change",
-				"documentation": "Documentation, comments, or non-code changes",
-				"tests":        "Test additions or improvements",
+				"bugfix":         "Fixes an existing bug or defect",
+				"feature":        "Adds new functionality",
+				"refactor":       "Improves code structure without behavior change",
+				"documentation":  "Documentation, comments, or non-code changes",
+				"tests":          "Test additions or improvements",
 				"infrastructure": "Build, CI/CD, or deployment changes",
 			},
 		),
@@ -48,24 +48,23 @@ func prioritizeReview(ctx context.Context, client *typesafe.Client, req ReviewRe
 		"risk_level": typesafe.ChoiceQuestion(
 			"What is the risk level of this change?",
 			map[string]string{
-				"low":        "Isolated change, well-tested, easy to revert",
-				"medium":     "Affects multiple areas but with safety checks",
-				"high":       "Touches core logic or affects many systems",
-				"critical":   "Could cause data loss or system failure if wrong",
+				"low":      "Isolated change, well-tested, easy to revert",
+				"medium":   "Affects multiple areas but with safety checks",
+				"high":     "Touches core logic or affects many systems",
+				"critical": "Could cause data loss or system failure if wrong",
 			},
 		),
 		// Suggest reviewer expertise
 		"reviewer_type": typesafe.ChoiceQuestion(
 			"What type of reviewer expertise is most important?",
 			map[string]string{
-				"junior":      "Good learning opportunity for newer developers",
-				"general":     "Any experienced developer can review",
-				"specialist":  "Needs domain expert (database, security, etc.)",
+				"junior":       "Good learning opportunity for newer developers",
+				"general":      "Any experienced developer can review",
+				"specialist":   "Needs domain expert (database, security, etc.)",
 				"architecture": "Requires architectural knowledge of the system",
 			},
 		),
 	})
-
 	if err != nil {
 		fmt.Printf("Error reviewing PR %d: %v\n", req.PR, err)
 		return

@@ -1,0 +1,129 @@
+version: "2"
+
+run:
+  timeout: 5m
+
+linters:
+  # Standard set: errcheck, govet, ineffassign, staticcheck, unused.
+  default: standard
+  enable:
+    - asasalint # []any passed to ...any variadic without spread
+    - bodyclose # unclosed HTTP response bodies
+    - copyloopvar # obsolete loop-variable copies (Go 1.22+)
+    - depguard # denied imports (testify/assert in tests)
+    - durationcheck # suspicious time.Duration multiplication
+    - errchkjson # unhandled json.Marshal errors on types that can fail
+    - errname # error vars named ErrFoo, error types named FooError
+    - errorlint # errors.Is/As instead of == and type assertions
+    - fatcontext # context accumulation inside loops
+    - forbidigo # banned call patterns (t.Fatal in tests)
+    - gocritic # opinionated correctness/style/perf checks
+    - gosec # security checks (file perms, hardcoded credentials, …)
+    - makezero # append to a slice made with nonzero length
+    - misspell # commonly misspelled English words
+    - nilerr # returning nil after a non-nil error check
+    - nilnesserr # returning a different nil error than the one checked
+    - noctx # HTTP requests without context
+    - nolintlint # nolint directives must be specific and explained
+    - perfsprint # faster fmt alternatives; errorf check replaces the old errorfcheck analyzer
+    - recvcheck # mixed pointer/value receivers on one type
+    - revive # maintainability checks (golint successor)
+    - sloglint # consistent log/slog usage
+    - spancheck # OTel spans must be ended and errors recorded
+    - testifylint # correct testify assertion usage
+    - thelper # test helpers must call t.Helper()
+    - tparallel # inconsistent t.Parallel() usage
+    - unconvert # unnecessary type conversions
+    - unparam # parameters and results that are never used or always the same
+    - usestdlibvars # http.MethodGet etc. instead of string literals
+    - usetesting # t.Context()/t.TempDir() over manual equivalents in tests
+    - wastedassign # assignments never read
+
+  settings:
+    depguard:
+      rules:
+        no-testify-assert:
+          files:
+            - "$test"
+          deny:
+            - pkg: github.com/stretchr/testify/assert
+              desc: use require instead of assert so failed assertions stop the test
+    forbidigo:
+      forbid:
+        - pattern: ^(t|b|tb)\.(Fatal|Error)(f)?$
+          msg: use require from testify instead of t.Fatal/t.Error
+        - pattern: ^(t|b|tb)\.Fail(Now)?$
+          msg: use require.Fail/require.FailNow from testify instead
+    gosec:
+      excludes:
+        # G706 (log injection): user-supplied values are escaped by the JSON
+        # log handler, so injected newlines cannot forge log lines.
+        - G706
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+    revive:
+      rules:
+        # Defaults, minus the exported-symbols-must-be-commented rule,
+        # which the codebase does not currently follow.
+        - name: blank-imports
+        - name: context-as-argument
+        - name: context-keys-type
+        - name: dot-imports
+        - name: empty-block
+        - name: error-naming
+        - name: error-return
+        - name: error-strings
+        - name: errorf
+        - name: increment-decrement
+        - name: indent-error-flow
+        - name: range
+        - name: receiver-naming
+        - name: redefines-builtin-id
+        - name: superfluous-else
+        - name: time-naming
+        - name: unexported-return
+        - name: unreachable-code
+        # unused-parameter is omitted: it fights interface-shaped callbacks
+        # (http.HandlerFunc's w/r) and constructor params reserved for
+        # upcoming use (jobs.Enqueuer).
+        - name: var-declaration
+        - name: var-naming
+    sloglint:
+      # Require *Context log variants wherever a context is in scope
+      # (complements the custom slogcheck analyzer).
+      context: scope
+      # Require slog.Attr constructors instead of raw key-value pairs, so
+      # every key goes through a constructor where slogcheck can verify it
+      # is an otelkeys constant.
+      attr-only: true
+      args-on-sep-lines: true
+      no-raw-keys: true
+      static-msg: true
+    spancheck:
+      checks:
+        - end
+        - record-error
+        - set-status
+
+  exclusions:
+    generated: lax
+    rules:
+      # Tests routinely use bare contexts and fixed strings.
+      - path: _test\.go
+        linters:
+          - noctx
+      # G101 (hardcoded credentials): test fixtures use documented public
+      # token vectors, not real credentials.
+      - path: _test\.go
+        linters:
+          - gosec
+        text: G101
+
+formatters:
+  enable:
+    - gofumpt
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0

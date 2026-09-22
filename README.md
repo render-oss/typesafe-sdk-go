@@ -117,6 +117,25 @@ client := typesafe.New(
 )
 ```
 
+### Retries
+
+Failed requests are retried twice by default, with exponential backoff and jitter.
+Retries apply to network errors, 408, 429, and 5xx; `Retry-After` is honored when
+present. `typesafe.WithMaxRetries(0)` disables them.
+
+### Logging and Metrics
+```go
+client := typesafe.New(
+	typesafe.WithAPIKey("key"),
+	typesafe.WithObserver(func(a typesafe.Attempt) {
+		slog.Info("typesafe", "attempt", a.N, "status", a.StatusCode,
+			"ms", a.Duration.Milliseconds(), "retrying", a.WillRetry, "err", a.Err)
+	}),
+)
+```
+
+The observer fires once per HTTP attempt, on the calling goroutine.
+
 ## Response Structure
 
 ```go

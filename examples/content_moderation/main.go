@@ -21,10 +21,10 @@ func moderateContent(ctx context.Context, client *typesafe.Client, content strin
 		"content_type": typesafe.ChoiceQuestion(
 			"What type of content is this?",
 			map[string]string{
-				"discussion":  "Thoughtful discussion, questions, or sharing knowledge",
-				"feedback":    "Bug reports, feature requests, or constructive criticism",
-				"spam":        "Promotional, advertising, or off-topic content",
-				"harassment":  "Personal attacks, insults, or abusive language",
+				"discussion":     "Thoughtful discussion, questions, or sharing knowledge",
+				"feedback":       "Bug reports, feature requests, or constructive criticism",
+				"spam":           "Promotional, advertising, or off-topic content",
+				"harassment":     "Personal attacks, insults, or abusive language",
 				"misinformation": "False claims or misleading information",
 			},
 		),
@@ -45,7 +45,6 @@ func moderateContent(ctx context.Context, client *typesafe.Client, content strin
 			),
 		),
 	})
-
 	if err != nil {
 		fmt.Printf("Error moderating content: %v\n", err)
 		return
