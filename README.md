@@ -11,7 +11,7 @@ go get github.com/render-oss/typesafe-sdk-go
 ## Quick Start
 
 ```go
-import "github.com/render-oss/typesafe-sdk-go"
+import "github.com/render-oss/typesafe-sdk-go/typesafe"
 
 // Create a client
 client := typesafe.New(
@@ -157,9 +157,7 @@ type Response struct {
 
 ## Examples
 
-See [`examples/`](examples/) for complete examples:
-
-- [`render_routing/`](examples/render_routing/) — Multi-intent routing for infrastructure questions
+See [`examples/`](examples/) for complete examples
 
 ## License
 
