@@ -182,10 +182,7 @@ func (c *Client) attempt(httpReq *http.Request, n int) (resp *Response, retryAft
 		return nil, -1, errors.New("http client returned no response and no error")
 	}
 	defer func() {
-		if err := httpResp.Body.Close(); err != nil {
-			// Log or handle the error if needed
-			_ = err
-		}
+		_ = httpResp.Body.Close()
 	}()
 	status = httpResp.StatusCode
 

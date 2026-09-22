@@ -1,6 +1,6 @@
 module github.com/renderinc/typesafe-go
 
-go 1.26.0
+go 1.27.0
 
 tool (
 	go.uber.org/nilaway/cmd/nilaway
