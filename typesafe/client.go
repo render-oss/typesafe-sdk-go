@@ -181,7 +181,12 @@ func (c *Client) attempt(httpReq *http.Request, n int) (resp *Response, retryAft
 		// A custom http.Client can supply a RoundTripper that breaks this contract.
 		return nil, -1, errors.New("http client returned no response and no error")
 	}
-	defer httpResp.Body.Close()
+	defer func() {
+		if err := httpResp.Body.Close(); err != nil {
+			// Log or handle the error if needed
+			_ = err
+		}
+	}()
 	status = httpResp.StatusCode
 
 	respBody, err := io.ReadAll(httpResp.Body)
@@ -219,5 +224,6 @@ func (c *Client) attempt(httpReq *http.Request, n int) (resp *Response, retryAft
 // backoff returns the delay before retry n: 200ms, 400ms, 800ms... plus jitter.
 func backoff(n int) time.Duration {
 	d := min(200*time.Millisecond<<n, 10*time.Second)
+	//nolint:gosec // G404: retry jitter only needs to decorrelate clients, not resist prediction.
 	return d + time.Duration(rand.Int63n(int64(d/2)))
 }

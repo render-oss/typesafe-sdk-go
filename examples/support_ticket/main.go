@@ -69,13 +69,14 @@ func analyzeTicket(ctx context.Context, client *typesafe.Client, ticket SupportT
 	fmt.Printf("🚪 Churn Risk: %.0f%%\n\n", churnRisk*100)
 
 	// Recommend handling priority
-	if churnRisk > 0.7 || urgency == 4 {
+	switch {
+	case churnRisk > 0.7 || urgency == 4:
 		fmt.Println("🔴 PRIORITY: Escalate immediately — high churn/critical issue")
-	} else if urgency >= 3 || sentiment > 0.6 {
+	case urgency >= 3 || sentiment > 0.6:
 		fmt.Println("🟠 HIGH: Assign to senior team member")
-	} else if urgency >= 2 {
+	case urgency >= 2:
 		fmt.Println("🟡 MEDIUM: Normal queue")
-	} else {
+	default:
 		fmt.Println("🟢 LOW: Can be batched or automated")
 	}
 }

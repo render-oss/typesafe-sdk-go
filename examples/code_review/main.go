@@ -81,12 +81,12 @@ func prioritizeReview(ctx context.Context, client *typesafe.Client, req ReviewRe
 	fmt.Printf("Reviewer: %s expert\n", reviewerType)
 
 	// Urgency-based routing
-	switch {
-	case urgency == 4:
+	switch urgency {
+	case 4:
 		fmt.Printf("🚨 CRITICAL: Review immediately - blocking or hotfix\n")
-	case urgency == 3:
+	case 3:
 		fmt.Printf("⏱️  HIGH: Prioritize in today's queue\n")
-	case urgency == 2:
+	case 2:
 		fmt.Printf("📋 MEDIUM: Normal review queue\n")
 	default:
 		fmt.Printf("✅ LOW: Can be batched or reviewed when bandwidth available\n")

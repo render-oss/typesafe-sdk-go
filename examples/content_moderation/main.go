@@ -59,13 +59,14 @@ func moderateContent(ctx context.Context, client *typesafe.Client, content strin
 	fmt.Printf("\n📝 %s: %q\n", username, content)
 	fmt.Printf("Type: %s | Confidence: %.0f%%\n", contentType, confidence*25)
 
-	if isAppropriate > 0.7 && needsReview < 0.4 {
+	switch {
+	case isAppropriate > 0.7 && needsReview < 0.4:
 		fmt.Println("✅ APPROVED: Safe to publish")
-	} else if needsReview > 0.6 {
+	case needsReview > 0.6:
 		fmt.Println("🔶 HOLD: Needs human review")
-	} else if isAppropriate < 0.3 {
+	case isAppropriate < 0.3:
 		fmt.Println("❌ REJECTED: Violates community guidelines")
-	} else {
+	default:
 		fmt.Println("⚠️  BORDERLINE: Likely needs human review")
 	}
 }
