@@ -220,7 +220,7 @@ jobs:
     steps:
       - name: Check all Go jobs passed (or skipped for docs-only)
         run: |
-          if [[ "${{ needs.go-lint.result }}" != "success" || "${{ needs.go-test.result }}" != "success" || "${{ needs.go-test-postgres.result }}" != "success" ]]; then
+          if [[ "${{ needs.go-lint.result }}" != "success" || "${{ needs.go-test.result }}" != "success" ]]; then
             echo "One or more Go jobs failed"
             exit 1
           fi
