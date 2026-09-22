@@ -5,7 +5,7 @@ A Go SDK for [TypeSafe Jev](https://typesafe.ai) — fast, focused AI judgments 
 ## Installation
 
 ```bash
-go get github.com/renderinc/typesafe-go
+go get github.com/render-oss/typesafe-sdk-go
 ```
 
 ## Quick Start
