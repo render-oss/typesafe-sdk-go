@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/renderinc/typesafe-go/typesafe"
+	"github.com/render-oss/typesafe-sdk-go"
 )
 
 // ModerateContent evaluates user-generated content for publication safety

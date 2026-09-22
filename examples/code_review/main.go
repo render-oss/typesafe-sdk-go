@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/renderinc/typesafe-go/typesafe"
+	"github.com/render-oss/typesafe-sdk-go"
 )
 
 // ReviewRequest represents a code review submission

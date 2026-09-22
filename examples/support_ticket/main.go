@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/renderinc/typesafe-go/typesafe"
+	"github.com/render-oss/typesafe-sdk-go"
 )
 
 // SupportTicket represents a customer support inquiry

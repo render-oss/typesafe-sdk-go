@@ -1,4 +1,4 @@
-module github.com/renderinc/typesafe-go
+module github.com/render-oss/typesafe-sdk-go
 
 go 1.27.0
 
