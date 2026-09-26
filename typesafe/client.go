@@ -30,11 +30,13 @@ type Client struct {
 
 // Attempt describes one HTTP attempt, for logging and metrics.
 type Attempt struct {
-	N          int // 0 for the first attempt
-	StatusCode int // 0 if the request never completed
-	Duration   time.Duration
-	Err        error
-	WillRetry  bool
+	N            int // 0 for the first attempt
+	StatusCode   int // 0 if the request never completed
+	Duration     time.Duration
+	Err          error
+	WillRetry    bool
+	RequestBody  []byte // JSON sent to the API
+	ResponseBody []byte // raw body received; nil if the request never completed
 }
 
 // ClientOption configures a Client.
@@ -138,7 +140,7 @@ func (c *Client) doRequest(ctx context.Context, req Request) (*Response, error) 
 			httpReq.Header.Set("Authorization", "Bearer "+c.APIKey)
 		}
 
-		resp, retryAfter, err := c.attempt(httpReq, n)
+		resp, retryAfter, err := c.attempt(httpReq, body, n)
 		if err == nil {
 			return resp, nil
 		}
@@ -158,17 +160,20 @@ func (c *Client) doRequest(ctx context.Context, req Request) (*Response, error) 
 
 // attempt performs one request. A negative retryAfter means the error is not
 // retryable; zero means retry after the default backoff.
-func (c *Client) attempt(httpReq *http.Request, n int) (resp *Response, retryAfter time.Duration, err error) {
+func (c *Client) attempt(httpReq *http.Request, reqBody []byte, n int) (resp *Response, retryAfter time.Duration, err error) {
 	start := time.Now()
 	status := 0
+	var respBody []byte
 	defer func() {
 		if c.observe != nil {
 			c.observe(Attempt{
-				N:          n,
-				StatusCode: status,
-				Duration:   time.Since(start),
-				Err:        err,
-				WillRetry:  err != nil && retryAfter >= 0 && n < c.MaxRetries,
+				N:            n,
+				StatusCode:   status,
+				Duration:     time.Since(start),
+				Err:          err,
+				WillRetry:    err != nil && retryAfter >= 0 && n < c.MaxRetries,
+				RequestBody:  reqBody,
+				ResponseBody: respBody,
 			})
 		}
 	}()
@@ -186,7 +191,7 @@ func (c *Client) attempt(httpReq *http.Request, n int) (resp *Response, retryAft
 	}()
 	status = httpResp.StatusCode
 
-	respBody, err := io.ReadAll(httpResp.Body)
+	respBody, err = io.ReadAll(httpResp.Body)
 	if err != nil {
 		return nil, 0, fmt.Errorf("read response: %w", err)
 	}
