@@ -1,6 +1,7 @@
 package typesafe
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -85,7 +86,7 @@ func TestRetryAndObserver(t *testing.T) {
 	var seen []Attempt
 	c := New(
 		WithBaseURL(srv.URL),
-		WithObserver(func(a Attempt) { seen = append(seen, a) }),
+		WithObserver(func(_ context.Context, a Attempt) { seen = append(seen, a) }),
 	)
 
 	resp, err := c.Classify(t.Context(), "hi", map[string]Question{

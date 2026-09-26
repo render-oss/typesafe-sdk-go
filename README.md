@@ -127,14 +127,16 @@ present. `typesafe.WithMaxRetries(0)` disables them.
 ```go
 client := typesafe.New(
 	typesafe.WithAPIKey("key"),
-	typesafe.WithObserver(func(a typesafe.Attempt) {
-		slog.Info("typesafe", "attempt", a.N, "status", a.StatusCode,
+	typesafe.WithObserver(func(ctx context.Context, a typesafe.Attempt) {
+		slog.InfoContext(ctx, "typesafe", "attempt", a.N, "status", a.StatusCode,
 			"ms", a.Duration.Milliseconds(), "retrying", a.WillRetry, "err", a.Err)
 	}),
 )
 ```
 
-The observer fires once per HTTP attempt, on the calling goroutine.
+The observer fires once per HTTP attempt, on the calling goroutine. It receives
+the context passed to `Classify`, so request-scoped values (e.g. the active
+trace span) are available.
 
 ## Response Structure
 

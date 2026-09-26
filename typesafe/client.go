@@ -25,7 +25,7 @@ type Client struct {
 	MaxRetries int
 
 	httpClient *http.Client
-	observe    func(Attempt)
+	observe    func(context.Context, Attempt)
 }
 
 // Attempt describes one HTTP attempt, for logging and metrics.
@@ -71,8 +71,10 @@ func WithMaxRetries(n int) ClientOption {
 }
 
 // WithObserver registers a callback invoked once per HTTP attempt. Use it to log
-// requests or record metrics. It runs on the calling goroutine, so keep it quick.
-func WithObserver(fn func(Attempt)) ClientOption {
+// requests or record metrics. It receives the context passed to Classify, so it
+// can access request-scoped values such as the active trace span. It runs on the
+// calling goroutine, so keep it quick.
+func WithObserver(fn func(context.Context, Attempt)) ClientOption {
 	return func(c *Client) {
 		c.observe = fn
 	}
@@ -166,7 +168,7 @@ func (c *Client) attempt(httpReq *http.Request, reqBody []byte, n int) (resp *Re
 	var respBody []byte
 	defer func() {
 		if c.observe != nil {
-			c.observe(Attempt{
+			c.observe(httpReq.Context(), Attempt{
 				N:            n,
 				StatusCode:   status,
 				Duration:     time.Since(start),
