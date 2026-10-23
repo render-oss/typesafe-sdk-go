@@ -1,6 +1,6 @@
 module github.com/render-oss/typesafe-sdk-go
 
-go 1.27.0
+go 1.27.3
 
 tool (
 	go.uber.org/nilaway/cmd/nilaway
